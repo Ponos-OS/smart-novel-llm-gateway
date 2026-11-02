@@ -22,8 +22,8 @@ RUN uv sync --project /app --frozen --no-dev --no-install-project
 RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('${TTS_MODEL}')"
 
 COPY src/server.py /app/server.py
-COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY --chmod=755 healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY --chmod=755 scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chmod=755 scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
 
 WORKDIR /app
 VOLUME /models
