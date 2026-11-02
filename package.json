@@ -1,6 +1,7 @@
 {
   "name": "smart-novel-llm-gateway-release",
   "private": true,
+  "license": "MIT",
   "description": "Node dependency manifest for the release toolchain (semantic-release + plugins) and jscpd. Kept separate from the Python project's pyproject.toml.",
   "scripts": {
     "release": "semantic-release",

@@ -3,6 +3,8 @@ name = "smart-novel-llm-gateway"
 version = "0.0.0"
 description = "OpenAI-compatible gateway for smart-novel: chat completions via llama.cpp, speech via Qwen3-TTS."
 requires-python = "==3.12.*"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "torch",
     "torchaudio",
