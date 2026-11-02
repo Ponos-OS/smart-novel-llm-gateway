@@ -1,6 +1,6 @@
 # smart-novel-llm-gateway
 
-🐳📦🚢 [The image in Docker Hub](https://hub.docker.com/r/9109679196/smart-novel-llm-gateway) exposing an OpenAI-compatible API for smart-novel, replacing Ollama and the local TTS shim:
+🐳📦🚢 [The image in Docker Hub](https://hub.docker.com/r/9109679196/smart-novel-llm-gateway) expose an OpenAI-compatible API for smart-novel, replacing Ollama and the local TTS shim:
 
 - `POST /v1/chat/completions` is proxied to the local llama-server (schema-constrained decoding happens there when `response_format` is a JSON schema).
 - `POST /v1/audio/speech` is served by Qwen3-TTS (MP3 only).
