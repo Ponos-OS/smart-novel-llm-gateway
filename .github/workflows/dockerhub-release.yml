@@ -1,0 +1,63 @@
+name: Release Docker image
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      # Linting only needs the dev group; skipping torch and friends keeps this step fast.
+      - name: Install lint dependencies
+        run: uv sync --only-group dev
+
+      - name: Lint
+        env:
+          UV_NO_SYNC: "1"
+        run: make lint_check
+
+      # The CUDA base image plus torch needs more room than the default runner offers.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          docker system prune -af
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: 9109679196
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Release and publish Docker image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKERHUB_REPOSITORY: 9109679196/smart-novel-llm-gateway
+        run: |
+          npx --yes \
+            --package semantic-release@24.2.9 \
+            --package @semantic-release/commit-analyzer@13.0.1 \
+            --package @semantic-release/release-notes-generator@14.1.0 \
+            --package @semantic-release/exec@7.1.0 \
+            --package @semantic-release/github@11.0.6 \
+            --package conventional-changelog-conventionalcommits@9.1.0 \
+            semantic-release

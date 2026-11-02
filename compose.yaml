@@ -1,0 +1,31 @@
+# Locally the image is built from source. Elsewhere, replace `build: .` with
+# `image: 9109679196/smart-novel-llm-gateway:<version>` and nothing else changes.
+
+services:
+  gateway:
+    build: .
+    image: smart-novel-llm-gateway:dev
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    environment:
+      LLM_HF_MODEL: ${LLM_HF_MODEL:-unsloth/Qwen3.6-35B-A3B-GGUF:Q4_K_M}
+      LLM_CTX_SIZE: ${LLM_CTX_SIZE:-8192}
+    volumes:
+      - models:/models
+
+  gateway-gpu:
+    extends:
+      service: gateway
+    profiles: [gpu]
+    environment:
+      LLM_GPU_LAYERS: 999
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  models:
