@@ -4,7 +4,7 @@ set -eu
 : "${LLM_HF_MODEL:?Set LLM_HF_MODEL, e.g. unsloth/Qwen3.6-35B-A3B-GGUF:Q4_K_M}"
 
 # 0 keeps everything on CPU; a large value offloads all layers to the GPU.
-llama-server \
+/app/llama-server \
   -hf "$LLM_HF_MODEL" \
   --host 127.0.0.1 \
   --port 8081 \
