@@ -15,6 +15,7 @@ help:
 ## Set up the local dev environment (.venv, deps)
 init:
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required: https://docs.astral.sh/uv/"; exit 1; }
+	npm ci
 	uv sync
 	uv run pre-commit install || true
 
@@ -46,13 +47,13 @@ compose_up_gpu:
 lint_check:
 	uv run ruff check .
 	uv run ruff format --check .
-	npx --yes jscpd@4.0.5
+	npm run --silent check:duplication
 
 ## Apply linters
 lint:
 	uv run ruff format .
 	uv run ruff check --fix .
-	npx --yes jscpd@4.0.5
+	npm run --silent check:duplication
 
 ## Remove caches and venv
 clean:

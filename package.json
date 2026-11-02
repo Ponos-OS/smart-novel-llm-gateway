@@ -1,0 +1,18 @@
+{
+  "name": "smart-novel-llm-gateway-release",
+  "private": true,
+  "description": "Node dependency manifest for the release toolchain (semantic-release + plugins) and jscpd. Kept separate from the Python project's pyproject.toml.",
+  "scripts": {
+    "release": "semantic-release",
+    "check:duplication": "jscpd"
+  },
+  "devDependencies": {
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/exec": "7.1.0",
+    "@semantic-release/github": "11.0.6",
+    "@semantic-release/release-notes-generator": "14.1.0",
+    "conventional-changelog-conventionalcommits": "9.1.0",
+    "jscpd": "4.0.5",
+    "semantic-release": "24.2.9"
+  }
+}

@@ -23,6 +23,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
@@ -52,12 +56,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_REPOSITORY: 9109679196/smart-novel-llm-gateway
-        run: |
-          npx --yes \
-            --package semantic-release@24.2.9 \
-            --package @semantic-release/commit-analyzer@13.0.1 \
-            --package @semantic-release/release-notes-generator@14.1.0 \
-            --package @semantic-release/exec@7.1.0 \
-            --package @semantic-release/github@11.0.6 \
-            --package conventional-changelog-conventionalcommits@9.1.0 \
-            semantic-release
+        run: npm run release
