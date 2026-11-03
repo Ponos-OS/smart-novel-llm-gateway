@@ -1,6 +1,7 @@
 """Single OpenAI-compatible entrypoint"""
 
 import os
+from collections.abc import AsyncIterator
 from io import BytesIO
 
 import httpx
@@ -63,11 +64,29 @@ async def chat_completions(request: Request) -> StreamingResponse:
         stream=True,
     )
 
+    async def relay() -> AsyncIterator[bytes]:
+        """
+        Always close upstream, even if the client disconnects mid-stream, so llama-server stops generating.
+        This function will not prevent the smart-novel-llm-gateway from generating the response. So even if client timeout/disconnect itself we cleanup the slots
+
+        A slot is one of llama-server's parallel request workers. It's a llama.cpp concept, not something from our code.
+
+        - What it holds: each slot has its own context (KV cache) and generation state, so the server can work on several requests at once.
+        - How many: here there are four (ids 0 to 3), all sharing --ctx-size 32768. Each request that comes in takes a free slot and keeps it until its generation finishes or is aborted.
+        - What it means for us: when all four are busy, new requests wait. They also compete for the same CPU, so every request slows down.
+
+        That's why the orphans mattered. Beatrice's original call and its two retries each took a slot (0, 1 and 2), and my test took slot 3. Each kept generating after its caller had stopped listening, so nothing was left free for new requests.
+        """
+        try:
+            async for chunk in upstream.aiter_raw():
+                yield chunk
+        finally:
+            await upstream.aclose()
+
     return StreamingResponse(
-        upstream.aiter_raw(),
+        relay(),
         status_code=upstream.status_code,
         media_type=upstream.headers.get("content-type"),
-        background=upstream.aclose,
     )
 
 
