@@ -1,5 +1,5 @@
 {
-  "path": ["src"],
+  "path": ["src", "tests"],
   "format": ["python"],
   "ignore": ["**/__pycache__/**"],
   "reporters": ["console"],

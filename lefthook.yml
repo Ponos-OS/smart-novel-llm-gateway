@@ -1,0 +1,19 @@
+# Install with `make init` (runs `npx lefthook install`).
+
+pre-commit:
+  # `make lint` applies fixes: stop the commit so they can be reviewed and staged.
+  fail_on_changes: always
+  jobs:
+    - name: lint
+      run: make lint
+
+pre-push:
+  fail_on_changes: always
+  jobs:
+    - name: lint
+      run: make lint
+
+commit-msg:
+  jobs:
+    - name: conventional commit message
+      run: uv run conventional-pre-commit {1}

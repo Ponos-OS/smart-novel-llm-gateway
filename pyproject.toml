@@ -17,10 +17,83 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["ruff", "pre-commit"]
+dev = [
+    "ruff>=0.8",
+    "conventional-pre-commit>=4.5.0",
+    "pre-commit-hooks>=6.0.0",
+    "ty>=0.0.107",
+    "flake8-aaa>=0.17.2",
+    "import-linter>=2.15",
+    "taplo>=0.9.3",
+]
 
 [tool.uv]
 package = false
 
 [tool.ruff]
+target-version = "py312"
 line-length = 100
+src = ["src", "tests"]
+extend-exclude = [".venv", "dist", "build"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",      # pycodestyle
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "C4",     # comprehensions
+    "SIM",    # simplify
+    "N",      # naming
+    "RUF",    # ruff-specific
+    "ISC001", # implicitly concatenated strings on one line
+    "ISC002", # implicitly concatenated strings over a backslash continuation
+]
+ignore = [
+    "E501", # line-length handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/*__test.py" = ["S101"]
+"tests/**/*.py" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+combine-as-imports = true
+lines-after-imports = 2
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+# Every package with a barrel `__init__.py` is "protected": nothing outside it may import a
+# submodule directly (`from src.utils.config import X`), only via the barrel
+# (`from src.utils import X`). `**` matches at any depth, so a new file in an existing package
+# needs no change here; only a brand new barrel package needs its own contract. Run via
+# `make lint_check` (`lint-imports`).
+[tool.importlinter]
+root_packages = ["src", "tests"]
+
+# Template contract: `src` is the app itself and must never import from the integration tests.
+[[tool.importlinter.contracts]]
+name = "src never imports tests"
+type = "forbidden"
+source_modules = ["src"]
+forbidden_modules = ["tests"]
+allow_indirect_imports = true
+
+# Example for a barrel package (uncomment once `src/utils/__init__.py` exists):
+# [[tool.importlinter.contracts]]
+# name = "src.utils internals are private"
+# type = "protected"
+# protected_modules = ["src.utils.**"]
+# allowed_importers = ["src.utils", "src.utils.**"]

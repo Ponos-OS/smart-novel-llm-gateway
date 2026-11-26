@@ -1,7 +1,8 @@
 """Single OpenAI-compatible entrypoint"""
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
 from io import BytesIO
 
 import httpx
@@ -13,15 +14,30 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from qwen_tts import Qwen3TTSModel
 
+
 TTS_MODEL = os.environ.get("TTS_MODEL", "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice")
 PORT = int(os.environ.get("GATEWAY_PORT", "8000"))
 LLAMA_URL = "http://127.0.0.1:8081"
 _VOICES = {"default": "Ryan"}
 _LANGUAGE = "English"
 
-app = FastAPI()
 llama = httpx.AsyncClient(base_url=LLAMA_URL, timeout=None)
 tts: Qwen3TTSModel | None = None
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    global tts
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    tts = Qwen3TTSModel.from_pretrained(
+        TTS_MODEL,
+        device_map=device,
+        dtype=torch.bfloat16 if device == "cuda" else torch.float32,
+    )
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class SpeechRequest(BaseModel):
@@ -30,17 +46,6 @@ class SpeechRequest(BaseModel):
     voice: str
     instructions: str | None = None
     response_format: str = "mp3"
-
-
-@app.on_event("startup")
-def load_tts() -> None:
-    global tts
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    tts = Qwen3TTSModel.from_pretrained(
-        TTS_MODEL,
-        device_map=device,
-        dtype=torch.bfloat16 if device == "cuda" else torch.float32,
-    )
 
 
 @app.get("/health")
@@ -72,7 +77,7 @@ async def chat_completions(request: Request) -> StreamingResponse:
         A slot is one of llama-server's parallel request workers. It's a llama.cpp concept, not something from our code.
 
         - What it holds: each slot has its own context (KV cache) and generation state, so the server can work on several requests at once.
-        - How many: here there are four (ids 0 to 3), all sharing --ctx-size 32768. Each request that comes in takes a free slot and keeps it until its generation finishes or is aborted.
+        - How many: here there are four (ids 0 to 3), all sharing --ctx-size 32768. Each request that comes in takes a free slot and keeps it until its generation finishes or is aborted.
         - What it means for us: when all four are busy, new requests wait. They also compete for the same CPU, so every request slows down.
 
         That's why the orphans mattered. Beatrice's original call and its two retries each took a slot (0, 1 and 2), and my test took slot 3. Each kept generating after its caller had stopped listening, so nothing was left free for new requests.
@@ -100,6 +105,9 @@ def speech(request: SpeechRequest) -> Response:
         raise HTTPException(
             status_code=422, detail=f"Unsupported response_format: {request.response_format}"
         )
+
+    if tts is None:
+        raise HTTPException(status_code=503)
 
     wavs, sample_rate = tts.generate_custom_voice(
         text=request.input,

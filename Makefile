@@ -3,10 +3,17 @@ SHELL         := /bin/bash
 .DEFAULT_GOAL := help
 
 .ONESHELL:
-.PHONY: help init start_dev docker_build docker_run docker_run_gpu compose_up compose_up_gpu lint_check lint clean
+.PHONY: help init start_dev docker_build docker_run docker_run_gpu compose_up compose_up_gpu format format_check lint_check lint clean
 
 IMAGE ?= smart-novel-llm-gateway
 TAG   ?= dev
+
+# Tracked and new text files, NUL separated.
+TEXT_FILES = git grep --untracked -Ilz -e ''
+YAML_FILES = $(TEXT_FILES) -- '*.yml' '*.yaml'
+TOML_FILES = $(TEXT_FILES) -- '*.toml'
+# The fixers matter for everything else, such as Markdown, YAML, JSON, the Makefile and the Dockerfile.
+WHITESPACE_FIXERS = end-of-file-fixer trailing-whitespace-fixer
 
 ## Show this help message
 help:
@@ -23,12 +30,12 @@ help:
 		} \
 	' $(MAKEFILE_LIST)
 
-## Set up the local dev environment (.venv, deps)
+## Set up the local dev environment
 init:
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required: https://docs.astral.sh/uv/"; exit 1; }
 	npm ci
 	uv sync
-	uv run pre-commit install || true
+	npx --no-install lefthook install
 
 ## Run the gateway with auto-reload (expects llama-server on 127.0.0.1:8081)
 start_dev:
@@ -54,19 +61,50 @@ compose_up:
 compose_up_gpu:
 	docker compose --profile gpu up --build gateway-gpu
 
-## Check linters
-lint_check:
-	uv run ruff check .
+## Format the code
+format:
+	$(YAML_FILES) | xargs -0 uv run check-yaml
+	$(TOML_FILES) | xargs -0 uv run check-toml
+	# A fixer exits 1 after changing a file, so only a second failure is an error.
+	for fixer in $(WHITESPACE_FIXERS); do
+		$(TEXT_FILES) | xargs -0 uv run $$fixer || $(TEXT_FILES) | xargs -0 uv run $$fixer
+	done
+	uv run taplo format
+	uv run ruff check --fix .
+	npx --no-install ast-grep scan -U src tests
+	uv run ruff format .
+
+## Check formatting
+format_check:
+	$(YAML_FILES) | xargs -0 uv run check-yaml
+	$(TOML_FILES) | xargs -0 uv run check-toml
+	# The fixers have no check mode, so they run on a throwaway copy.
+	copy="$$(mktemp -d)"
+	trap 'rm -rf "$$copy"' EXIT
+	$(TEXT_FILES) | tar --null -T - -cf - | tar -xf - -C "$$copy"
+	for fixer in $(WHITESPACE_FIXERS); do
+		$(TEXT_FILES) | (cd "$$copy" && xargs -0 uv run --project "$(CURDIR)" $$fixer)
+	done
+	uv run taplo format --check
 	uv run ruff format --check .
+	npx --no-install ast-grep scan src tests
+
+## Check linters
+lint_check: format_check
+	uv run ruff check .
+	uv run flake8
+	uv run ty check
+	uv run lint-imports
 	npm run --silent check:duplication
 
 ## Apply linters
-lint:
-	uv run ruff format .
-	uv run ruff check --fix .
+lint: format
+	uv run flake8
+	uv run ty check
+	uv run lint-imports
 	npm run --silent check:duplication
 
 ## Remove caches and venv
 clean:
-	rm -rf .venv .ruff_cache
+	rm -rf .venv .ruff_cache .import_linter_cache
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

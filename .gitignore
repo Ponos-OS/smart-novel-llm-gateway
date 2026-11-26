@@ -2,4 +2,5 @@
 __pycache__/
 .venv/
 .ruff_cache/
+.import_linter_cache/
 node_modules/
