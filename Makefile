@@ -71,7 +71,8 @@ format:
 	done
 	uv run taplo format
 	uv run ruff check --fix .
-	npx --no-install ast-grep scan -U src tests
+	# Colored output queries the terminal's background; inside a git hook the reply leaks into the shell.
+	npx --no-install ast-grep scan --color never -U src tests
 	uv run ruff format .
 
 ## Check formatting
